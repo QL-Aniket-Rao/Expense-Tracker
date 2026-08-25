@@ -14,3 +14,21 @@ model User {
   name  String?
   password String
 }
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Transaction {
+  id          Int              @id @default(autoincrement())
+  userId      Int
+  amount      Float            @db.Decimal(10, 2)
+  description String?
+  date        DateTime         @default(now())
+  status      TransactionStatus
+  // Assuming a balance/account model might be needed for real transfers, 
+  // but for simplicity, we link it to the user for now.
+  user        User             @relation(fields: [userId], references: [id])
+}
