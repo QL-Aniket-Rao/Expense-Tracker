@@ -13,6 +13,8 @@ model User {
   email String  @unique
   name  String?
   password String
+  transactions Transaction[]
+  categories Category[]
 }
 
 enum TransactionStatus {
@@ -28,7 +30,16 @@ model Transaction {
   description String?
   date        DateTime         @default(now())
   status      TransactionStatus
-  // Assuming a balance/account model might be needed for real transfers, 
-  // but for simplicity, we link it to the user for now.
   user        User             @relation(fields: [userId], references: [id])
+  category    Category?        @relation(fields: [categoryId], references: [id])
+  categoryId  Int?
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  transactions Transaction[]
 }
