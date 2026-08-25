@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { TransactionStatus } from '@prisma/client';
 
 // Load environment variables
 dotenv.config();
@@ -107,7 +108,74 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
   }
 });
 
+// =====================================================
+// --- Transaction API Implementation ---
+// =====================================================
+
+// POST /api/transactions - Create a new transaction
+app.post('/api/transactions', authenticateToken, async (req: Request, res: Response) => {
+  const { amount, description } = req.body;
+  const userId = (req as any).user.id;
+
+  // 1. Transaction Validation
+  if (typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ message: 'Invalid amount. Amount must be a positive number.' });
+  }
+  if (typeof description !== 'string' || description.trim() === '') {
+    return res.status(400).json({ message: 'Description is required.' });
+  }
+
+  try {
+    // 2. Implement Transaction Management (Using Prisma Transaction)
+    const transaction = await prisma.$transaction(async (tx) => {
+      // In a real application, we would check the user's balance here.
+      // For this implementation, we simply create the transaction record.
+      
+      const newTransaction = await tx.transaction.create({
+        data: {
+          userId: userId,
+          amount: parseFloat(amount.toFixed(2)), // Ensure proper decimal handling
+          description: description,
+          status: TransactionStatus.PENDING, // Start as pending
+        },
+      });
+      
+      // If complex logic was needed (e.g., updating a balance model), it would go here.
+      // Example: await tx.account.update({ where: { userId }, data: { balance: { decrement: parseFloat(amount.toFixed(2)) } } });
+
+      return newTransaction;
+    });
+
+    // 3. Success response
+    res.status(201).json({ message: 'Transaction created successfully', transaction });
+
+  } catch (error) {
+    // 4. Transaction Error Handling
+    console.error('Transaction creation error:', error);
+    res.status(500).json({ message: 'Failed to process transaction due to a server error.' });
+  }
+});
+
+// GET /api/transactions - Retrieve user's transactions
+app.get('/api/transactions', authenticateToken, async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+
+  try {
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: userId },
+      orderBy: { date: 'desc' },
+    });
+    
+    res.status(200).json({ transactions });
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    res.status(500).json({ error: 'Failed to retrieve transactions.' });
+  }
+});
+
+// =====================================================
 // --- Protected Route Example ---
+// =====================================================
 // This route now requires a valid JWT
 app.get('/api/profile', authenticateToken, async (req: Request, res: Response) => {
   // req.user is attached by the middleware
